@@ -27,8 +27,12 @@ Personage Type
 ########## Variables ###############
 $arrUsers = @();
 $timer = Get-Date -UFormat %s -Millisecond 0
-$path = "d:\NTS-Export-"+$timer+".csv"
+$path = "d:\Export-"+$timer+".csv"
 $licNumber = 0
+$devNumber = 0
+$countUsers = 0
+$i = 0
+$y = 0
 $Sku = @{
 	"O365_BUSINESS_ESSENTIALS"		     = "Office 365 Business Essentials"
 	"O365_BUSINESS_PREMIUM"			     = "Office 365 Business Premium"
@@ -160,85 +164,246 @@ $UsersArray = New-Object psobject
 #$AzureADSubscribedSKU = Get-AzureADSubscribedSku |select SKU*
 
 
-######### Uncomment on first run
+try 
+{ $vargetazuread = Get-AzureADTenantDetail } 
 
-#$AzureADUserARR = Get-AzureADUser -all $true |select UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
-#$devices = Get-AzureADDevice -all $true
+catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] 
+{ Write-Host "You're not connected."; Connect-AzureAD}
+
+Connect-MgGraph
+
+
+
+if ($AzureADUserARR) {
+    write-host "Er is al data aanwezig. Deze data opnieuw inlezen?"
+    write-host "LET OP. Het vernieuwen van de gegevens kan enige tijd in beslag nemen. Afhankelijk van de hoeveelheid data die opgehaald moet worden."
+    $refresh = Read-Host -prompt "y/n"
+}else{
+
+    $refresh = "y"
+    }
+ 
+
+If ($refresh -eq "y"){
+
+    Write-Host "Data Inlezen"
+    write-host "Preparing AzureAD Users" 
+    $AzureADUserARR = Get-AzureADUser -all $true |select objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+    Write-Host "Found $($AzureADUserARR.COUNT) Users"
+    write-host "Preparing AzureAD Devices" 
+    $devices = Get-MgDevice
+    Write-Host "Found $($devices.COUNT) Devices"
+ }
+
+
+
+
 
 $countUsers = $AzureADUserARR.Count
 
+#dummy info
+        $UsersArray = New-Object psobject
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name UserPrincipalName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DisplayName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GivenName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name SurName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Jobtitle -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name CompanyName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name City -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Department -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerName -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerUPN -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie1 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie2 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie3 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie4 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie5 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie6 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie7 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie8 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie9 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalLic -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device1 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS1 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion1 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor1 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model1 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device2 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS2 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion2 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor2 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model2 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device3 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS3 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion3 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor3 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model3 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device4 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS4 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion4 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor4 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model4 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device5 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS5 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion5 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor5 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model5 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device6 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS6 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion6 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor6 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model6 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device7 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS7 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion7 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor7 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model7 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device8 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS8 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion8 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor8 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model8 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device9 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS9 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion9 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor9 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model9 -Value "DUMMY"
+                Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model10 -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalDevices -Value "DUMMY"
+
+        $arrUsers += $UsersArray
+
 ForEach ($AzureADUser in $AzureADUserARR){
-    $UsersArray = New-Object psobject
-    $upn = $AzureADUser.UserPrincipalName
-    $i++
 
-Write-Progress -Activity "Progress" `
-    -CurrentOperation "$upn ($i from in total $count)" `
-    -PercentComplete (($i*100)/$countUsers) `
-    -Status "$(([math]::Round((($i)/$countUsers * 100),2))) %" `
+    if ($AzureADUser.UserPrincipalName -notLike '*#EXT#*')  {
+      
+        $UsersArray = New-Object psobject
+        $upn = $AzureADUser.UserPrincipalName
+        $y=0
+        $i++
+
+    Write-Progress -Activity "Progress users" `
+        -CurrentOperation "$upn ($i from in total $($AzureADUserARR.count))" `
+        -PercentComplete (($i*100)/$countUsers) `
+        -Status "$(([math]::Round((($i)/$countUsers * 100),2))) %" `
+        -id 1
     
+        Write-host "INFO: Exporting UserDetails $upn ... " -ForegroundColor Green
+
+
+
+        ############# defaultInformation
+
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name UserPrincipalName -Value $AzureADUser.UserPrincipalName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DisplayName -Value $AzureADUser.DisplayName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GivenName -Value $AzureADUser.GivenName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name SurName -Value $AzureADUser.Surname
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Jobtitle -Value $AzureADUser.JobTitle
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name CompanyName -Value $AzureADUser.CompanyName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name City -Value $AzureADUser.City
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Department -Value $AzureADUser.Department
+
+        ############ Manager
     
-    Write-host "INFO: Exporting UserDetails $upn ... " -ForegroundColor Green
+        Write-host "INFO: Exporting Manager $upn ... " -ForegroundColor Green
 
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name UserPrincipalName -Value $AzureADUser.UserPrincipalName
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DisplayName -Value $AzureADUser.DisplayName
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GivenName -Value $AzureADUser.GivenName
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name SurName -Value $AzureADUser.Surname
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Jobtitle -Value $AzureADUser.JobTitle
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name CompanyName -Value $AzureADUser.CompanyName
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name City -Value $AzureADUser.City
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Department -Value $AzureADUser.Department
+        $AzureADuserManager = Get-AzureADUserManager -ObjectId $AzureADUser.UserPrincipalName
 
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerName -Value $AzureADuserManager.DisplayName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerUPN -Value $AzureADuserManager.UserPrincipalName
 
-    #$AzureADUser
-    Write-host "INFO: Exporting Manager $upn ... " -ForegroundColor Green
+        ############# Lic
+        Write-host "Finding Licenses $upn ... " -ForegroundColor Green
 
-    $AzureADuserManager = Get-AzureADUserManager -ObjectId $AzureADUser.UserPrincipalName
-
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerName -Value $AzureADuserManager.DisplayName
-    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerUPN -Value $AzureADuserManager.UserPrincipalName
-
-
-    Write-host "Finding Licenses $upn ... " -ForegroundColor Green
-
-    ForEach ($lic in $azureaduser.AssignedLicenses)
-        {
-        $licNumber++
+        ForEach ($lic in $azureaduser.AssignedLicenses)
+            {
+            $licNumber++
     
-        $License = Get-AzureADSubscribedSku |select SKU* | where SKUid -like $lic.SkuId
-        $lic = $license.SkuPartNumber
+            $License = Get-AzureADSubscribedSku |select SKU* | where SKUid -like $lic.SkuId
+            $lic = $license.SkuPartNumber
 
-        Write-Host "Finding $lic in the Hash Table..." -ForegroundColor White
+            Write-Host "Finding $lic in the Hash Table..." -ForegroundColor White
 			
-                $LicenseItem = $lic -split ":" | Select-Object -Last 1
-			    $TextLic = $Sku.Item("$LicenseItem")
+                    $LicenseItem = $lic -split ":" | Select-Object -Last 1
+			        $TextLic = $Sku.Item("$LicenseItem")
 
-        If (!($TextLic))
-			    {
+            If (!($TextLic))
+			        {
 
-				    Write-Host "Error: The Hash Table has no match for $LicenseItem for $upn!" -ForegroundColor Red
-				    $LicenseFallBackName = $License.AccountSkuId
-				    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $license.SkuPartNumber
-                    $license.SkuPartNumber
-			    }
-			    Else
-			    {
-				    Write-Host "INFO: The Hash Table has a match for $LicenseItem for $upn!" -ForegroundColor green
+				        Write-Host "Error: The Hash Table has no match for $LicenseItem for $upn!" -ForegroundColor Red
+				        $LicenseFallBackName = $License.AccountSkuId
+				        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $license.SkuPartNumber
+                        $license.SkuPartNumber
+			        }
+			        Else
+			        {
+				        Write-Host "INFO: The Hash Table has a match for $LicenseItem for $upn!" -ForegroundColor green
                     
-				    Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $textlic
+				        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $textlic
                     
-			    }
+			        }
           
     
+            }
+      Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalLic -Value $licNumber
+      $licNumber = 0
+  
+  
+      ################### DEVICES
+
+      ForEach ($device in $devices){
+      $y++
+      
+  
+
+      Write-Progress -Activity "Progress Devices" `
+        -CurrentOperation "$($device.displayname) ($y from in total $($devices.count))" `
+        -PercentComplete (($y*100)/$($devices.count)) `
+        -Status "$(([math]::Round((($y)/$($devices.count) * 100),2))) %" `
+        -ParentId 1
+
+        $owner = $device.physicalids | ? -FilterScript {$_ -like "*USER-GID*"} 
+        $owner = $owner -split ":" |Select-Object -Skip 1 | Select-Object -First 1
+        
+        #$AzureADUser.objectid
+
+
+
+        if ($owner -eq $AzureADUser.objectid){ 
+        $devNumber++
+        
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device$devNumber -Value $device.DisplayName
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS$devNumber -Value $device.OperatingSystem
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion$devNumber -Value $device.OperatingSystemVersion
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor$devNumber -Value $device.AdditionalProperties.manufacturer
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model$devNumber -Value $device.AdditionalProperties.model
+
+        
         }
-  Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalLic -Value $licNumber
-  $licNumber = 0
-  $arrUsers += $UsersArray
+  
+
+
+
 
 }
+
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalDevices -Value $devNumber
+        $devNumber = 0
+        $arrUsers += $UsersArray
+
+    } Else {Write-host "INFO: $($AzureADUser.UserPrincipalName) is an external user. Skipping this user" 
+            $i++}
+    
+    
+   }
 
 #### EXPORT ####
 
 
 
-$arrUsers |sort -Property TotalLic -Descending | Export-Csv $path -Delimiter ';' -NoTypeInformation -Encoding UTF8
+$arrUsers | Export-Csv $path -Delimiter ';' -NoTypeInformation -Encoding UTF8
