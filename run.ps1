@@ -1,4 +1,4 @@
-#connecto to AzureAD
+﻿#connecto to AzureAD
 
 #Connect-AzureAD
 <#
@@ -23,6 +23,39 @@ App
 Personage Type
 
 #>
+
+Clear-Host
+
+#$boolProefRun              = $false
+$verbose                   = $false
+
+ 
+
+$strLogFile                = "$PSScriptRoot\Logging\logging.log"
+$varMaxLengthLogFile       = 50000
+
+ 
+
+
+if (!(test-path $strLogFile)) {
+    $logfile  = new-item -ItemType file -Path $strLogFile
+}
+else {
+    $logfile = $strLogFile
+}
+$error.clear()
+
+ 
+
+Function LOG($strText) {
+    $strDatum = (get-date).ToString("yyyyMMdd HH:mm:ss")
+    if ($verbose -eq $true) {
+        write-host "[$($strDatum)] $($strText)"
+    }
+    add-content -Path $logfile "[$($strDatum)] $($strText)"
+}
+
+
 
 ########## Variables ###############
 $arrUsers = @();
@@ -158,6 +191,11 @@ $Sku = @{
 	
 }
 
+
+LOG "[INFO] // START RUN"
+
+
+
 $UsersArray = New-Object psobject
 
 #Get-AzureADUser -All $true
@@ -168,7 +206,7 @@ try
 { $vargetazuread = Get-AzureADTenantDetail } 
 
 catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] 
-{ Write-Host "You're not connected."; Connect-AzureAD}
+{ LOG [WARNING] "You're not connected."; Connect-AzureAD}
 
 Connect-MgGraph
 
@@ -176,8 +214,10 @@ Connect-MgGraph
 
 if ($AzureADUserARR) {
     write-host "Er is al data aanwezig. Deze data opnieuw inlezen?"
+    LOG "[INFO] er is al data aanwezig"
     write-host "LET OP. Het vernieuwen van de gegevens kan enige tijd in beslag nemen. Afhankelijk van de hoeveelheid data die opgehaald moet worden."
     $refresh = Read-Host -prompt "y/n"
+    LOG "[INFO] $refresh"
 }else{
 
     $refresh = "y"
@@ -186,13 +226,13 @@ if ($AzureADUserARR) {
 
 If ($refresh -eq "y"){
 
-    Write-Host "Data Inlezen"
-    write-host "Preparing AzureAD Users" 
-    $AzureADUserARR = Get-AzureADUser -all $true |select objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
-    Write-Host "Found $($AzureADUserARR.COUNT) Users"
-    write-host "Preparing AzureAD Devices" 
+     LOG "[INFO] Data Inlezen"
+     LOG "[INFO] Preparing AzureAD Users" 
+    $AzureADUserARR = Get-AzureADUser -all $true |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+     LOG "[INFO] Found $($AzureADUserARR.COUNT) Users"
+     LOG "[INFO] Preparing AzureAD Devices" 
     $devices = Get-MgDevice
-    Write-Host "Found $($devices.COUNT) Devices"
+     LOG "[INFO] Found $($devices.COUNT) Devices"
  }
 
 
@@ -275,6 +315,7 @@ $countUsers = $AzureADUserARR.Count
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor10 -Value "DUMMY"
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model10 -Value "DUMMY"
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalDevices -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GroupMemberships -Value "DUMMY"
 
         $arrUsers += $UsersArray
 
@@ -286,6 +327,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         $upn = $AzureADUser.UserPrincipalName
         $y=0
         $i++
+        $MemberString = $null
 
     Write-Progress -Activity "Progress users" `
         -CurrentOperation "$upn ($i from in total $($AzureADUserARR.count))" `
@@ -293,7 +335,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         -Status "$(([math]::Round((($i)/$countUsers * 100),2))) %" `
         -id 1
     
-        Write-host "INFO: Exporting UserDetails $upn ... " -ForegroundColor Green
+        LOG "[INFO] Exporting UserDetails $upn ... " -ForegroundColor Green
 
 
 
@@ -308,9 +350,28 @@ ForEach ($AzureADUser in $AzureADUserARR){
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name City -Value $AzureADUser.City
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Department -Value $AzureADUser.Department
 
+        ############ Get Groupmemberships:
+
+        $AzureADUserGroups = Get-AzureADUserMembership -ObjectId $AzureADUser.objectid
+
+        LOG "[INFO] groupmemberships"
+        
+        ForEach ($AzureADUserGroup in $AzureADUserGroups){
+
+            LOG "[INFO]  $($AzureADUserGroup.displayname)"
+
+            $MemberString += $($AzureADUserGroup.displayname) 
+            $MemberString += "`r`n"
+        
+            
+            
+        }
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GroupMemberships -Value $MemberString
+        LOG "[INFO] $MemberString"
+        
         ############ Manager
     
-        Write-host "INFO: Exporting Manager $upn ... " -ForegroundColor Green
+        LOG "[INFO] Exporting Manager $upn ... " -ForegroundColor Green
 
         $AzureADuserManager = Get-AzureADUserManager -ObjectId $AzureADUser.UserPrincipalName
 
@@ -318,7 +379,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name ManagerUPN -Value $AzureADuserManager.UserPrincipalName
 
         ############# Lic
-        Write-host "Finding Licenses $upn ... " -ForegroundColor Green
+        LOG "[INFO] Finding Licenses $upn ... " -ForegroundColor Green
 
         ForEach ($lic in $azureaduser.AssignedLicenses)
             {
@@ -327,7 +388,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
             $License = Get-AzureADSubscribedSku |select SKU* | where SKUid -like $lic.SkuId
             $lic = $license.SkuPartNumber
 
-            Write-Host "Finding $lic in the Hash Table..." -ForegroundColor White
+            LOG "[INFO] Finding $lic in the Hash Table..."
 			
                     $LicenseItem = $lic -split ":" | Select-Object -Last 1
 			        $TextLic = $Sku.Item("$LicenseItem")
@@ -335,14 +396,14 @@ ForEach ($AzureADUser in $AzureADUserARR){
             If (!($TextLic))
 			        {
 
-				        Write-Host "Error: The Hash Table has no match for $LicenseItem for $upn!" -ForegroundColor Red
+				        LOG "[ERROR]  The Hash Table has no match for $LicenseItem for $upn!" -ForegroundColor Red
 				        $LicenseFallBackName = $License.AccountSkuId
 				        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $license.SkuPartNumber
-                        $license.SkuPartNumber
+                        #$license.SkuPartNumber
 			        }
 			        Else
 			        {
-				        Write-Host "INFO: The Hash Table has a match for $LicenseItem for $upn!" -ForegroundColor green
+				        LOG "[INFO]  The Hash Table has a match for $LicenseItem for $upn!"
                     
 				        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Licentie$licNumber -Value $textlic
                     
@@ -352,7 +413,10 @@ ForEach ($AzureADUser in $AzureADUserARR){
             }
       Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalLic -Value $licNumber
       $licNumber = 0
-  
+
+      
+        
+      
   
       ################### DEVICES
 
@@ -396,7 +460,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         $devNumber = 0
         $arrUsers += $UsersArray
 
-    } Else {Write-host "INFO: $($AzureADUser.UserPrincipalName) is an external user. Skipping this user" 
+    } Else {LOG "[INFO]  $($AzureADUser.UserPrincipalName) is an external user. Skipping this user" 
             $i++}
     
     
@@ -407,3 +471,9 @@ ForEach ($AzureADUser in $AzureADUserARR){
 
 
 $arrUsers | Export-Csv $path -Delimiter ';' -NoTypeInformation -Encoding UTF8
+
+
+LOG "// END RUN"
+$newFile = get-content $strLogFile | select-object -last $varMaxLengthLogFile
+$action  = remove-item $strLogFile -Force
+$action  = add-content -Path $strLogFile $NewFile
