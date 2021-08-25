@@ -27,7 +27,8 @@ Personage Type
 Clear-Host
 
 #$boolProefRun              = $false
-$verbose                   = $false
+$verbose                   = $true
+
 
  
 
@@ -35,6 +36,7 @@ $strLogFile                = "$PSScriptRoot\Logging\logging.log"
 $varMaxLengthLogFile       = 50000
 
  
+
 
 
 if (!(test-path $strLogFile)) {
@@ -57,10 +59,12 @@ Function LOG($strText) {
 
 
 
+
+
 ########## Variables ###############
 $arrUsers = @();
 $timer = Get-Date -UFormat %s -Millisecond 0
-$path = "d:\Export-"+$timer+".csv"
+$path = "$PSScriptRoot\Export\Export-"+$timer+".csv"
 $licNumber = 0
 $devNumber = 0
 $countUsers = 0
@@ -188,8 +192,14 @@ $Sku = @{
 	"STREAM"							 = "Microsoft Stream Trial"
 	"EMSPREMIUM"                         = "ENTERPRISE MOBILITY + SECURITY E5"
     "IDENTITY_THREAT_PROTECTION_FACULTY" = "Identity Protection Faculty"
-	
+	"THREAT_INTELLIGENCE"                = "Threat Intelligence"
+    "DYN365_BUSCENTRAL_PREMIUM"          = "Dynamics 365 Business Central Premium"
 }
+
+
+$action  = Copy-Item $strLogFile -Destination "$strLogFile$timer.log"
+$action  = remove-item $strLogFile -Force
+$action  = add-content -Path $strLogFile $null
 
 
 LOG "[INFO] // START RUN"
@@ -208,7 +218,7 @@ try
 catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] 
 { LOG [WARNING] "You're not connected."; Connect-AzureAD}
 
-Connect-MgGraph
+Connect-MgGraph "device.read.all"
 
 
 
@@ -228,10 +238,13 @@ If ($refresh -eq "y"){
 
      LOG "[INFO] Data Inlezen"
      LOG "[INFO] Preparing AzureAD Users" 
-    $AzureADUserARR = Get-AzureADUser -all $true |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+     #$AzureADUserARR = Get-AzureADUser -all $true |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+     $AzureADUserARR = Get-AzureADUser -Top 300 |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
      LOG "[INFO] Found $($AzureADUserARR.COUNT) Users"
      LOG "[INFO] Preparing AzureAD Devices" 
-    $devices = Get-MgDevice
+     $devices = Get-MgDevice -All
+     
+
      LOG "[INFO] Found $($devices.COUNT) Devices"
  }
 
@@ -320,8 +333,8 @@ $countUsers = $AzureADUserARR.Count
         $arrUsers += $UsersArray
 
 ForEach ($AzureADUser in $AzureADUserARR){
-
-    if ($AzureADUser.UserPrincipalName -notLike '*#EXT#*')  {
+    Log "[INFO] ******************* NEW USER *******************"
+    if (($AzureADUser.UserPrincipalName -notLike '*#EXT#*') -AND ($AzureADUser.UserPrincipalName -notLike '*admin*' ))  {
       
         $UsersArray = New-Object psobject
         $upn = $AzureADUser.UserPrincipalName
@@ -358,16 +371,48 @@ ForEach ($AzureADUser in $AzureADUserARR){
         
         ForEach ($AzureADUserGroup in $AzureADUserGroups){
 
-            LOG "[INFO]  $($AzureADUserGroup.displayname)"
 
-            $MemberString += $($AzureADUserGroup.displayname) 
-            $MemberString += "`r`n"
-        
+            if ($AzureADUserGroup -like "*AG_*"){
+
+                LOG "[INFO]  $($AzureADUserGroup.displayname)"
+                $MemberString += $($AzureADUserGroup.displayname) 
+                $MemberString += "`r`n"
+
+                if ($AzureADUserGroup.displayname -like "AAD_AG_MEET_Nebato_Users")
+
+                {
+                    Log "[INFO] NEBATO.LOCAL user"
+
+                    $secpasswd = ConvertTo-SecureString "v_zzASPLDuZ/2KE" -AsPlainText -Force
+                    $mycreds = New-Object System.Management.Automation.PSCredential ("sa.ldap.wiki.e", $secpasswd)
+
+                    $samaccountname = (get-aduser -filter "UserPrincipalName -eq '$($AzureADUser.UserPrincipalName)'"  -Server "nebato.local" -Credential $mycreds).samaccountname
+
+                    $NebatoGroups = (Get-ADPrincipalGroupMembership -Identity $samaccountname -Server "nebato.local" -Credential $mycreds -ResourceContextServer nebato.local).name
+
+                    ForEach ($NebatoGroup in $NebatoGroups){
+
+
+                      if ($NebatoGroup -like "*G_APP*"){
+
+                          Log "[INFO] $NebatoGroup"
+                          $MemberString += $($NebatoGroup) 
+                          $MemberString += "`r`n"
+
+
+                        }
+                      
+                }
+
+            }
             
-            
+         }    
         }
+
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GroupMemberships -Value $MemberString
-        LOG "[INFO] $MemberString"
+        $MemberString = $null
+
+        #LOG "[INFO] $MemberString"
         
         ############ Manager
     
@@ -419,6 +464,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
       
   
       ################### DEVICES
+      LOG [INFO] Finding Devices
 
       ForEach ($device in $devices){
       $y++
@@ -430,6 +476,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         -PercentComplete (($y*100)/$($devices.count)) `
         -Status "$(([math]::Round((($y)/$($devices.count) * 100),2))) %" `
         -ParentId 1
+        
 
         $owner = $device.physicalids | ? -FilterScript {$_ -like "*USER-GID*"} 
         $owner = $owner -split ":" |Select-Object -Skip 1 | Select-Object -First 1
@@ -440,7 +487,8 @@ ForEach ($AzureADUser in $AzureADUserARR){
 
         if ($owner -eq $AzureADUser.objectid){ 
         $devNumber++
-        
+        Log  "[INFO] Device Found $($device.DisplayName)"
+
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Device$devNumber -Value $device.DisplayName
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOS$devNumber -Value $device.OperatingSystem
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name DeviceOSVersion$devNumber -Value $device.OperatingSystemVersion
@@ -460,7 +508,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
         $devNumber = 0
         $arrUsers += $UsersArray
 
-    } Else {LOG "[INFO]  $($AzureADUser.UserPrincipalName) is an external user. Skipping this user" 
+    } Else {LOG "[INFO]  $($AzureADUser.UserPrincipalName) is an Excluded user. Skipping this user" 
             $i++}
     
     
@@ -474,6 +522,6 @@ $arrUsers | Export-Csv $path -Delimiter ';' -NoTypeInformation -Encoding UTF8
 
 
 LOG "// END RUN"
-$newFile = get-content $strLogFile | select-object -last $varMaxLengthLogFile
-$action  = remove-item $strLogFile -Force
-$action  = add-content -Path $strLogFile $NewFile
+
+
+
