@@ -238,8 +238,8 @@ If ($refresh -eq "y"){
 
      LOG "[INFO] Data Inlezen"
      LOG "[INFO] Preparing AzureAD Users" 
-     #$AzureADUserARR = Get-AzureADUser -all $true |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
-     $AzureADUserARR = Get-AzureADUser -Top 300 |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+     $AzureADUserARR = Get-AzureADUser -all $true |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
+     #$AzureADUserARR = Get-AzureADUser -Top 300 |Select-Object objectid,UserPrincipalName, Displayname, GivenName, Surname, Jobtitle, companyname, City, Department, manager, assignedlicenses 
      LOG "[INFO] Found $($AzureADUserARR.COUNT) Users"
      LOG "[INFO] Preparing AzureAD Devices" 
      $devices = Get-MgDevice -All
@@ -464,7 +464,7 @@ ForEach ($AzureADUser in $AzureADUserARR){
       
   
       ################### DEVICES
-      LOG [INFO] Finding Devices
+      LOG "[INFO] Finding Devices"
 
       ForEach ($device in $devices){
       $y++
