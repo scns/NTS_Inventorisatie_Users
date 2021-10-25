@@ -24,6 +24,11 @@ Personage Type
 
 #>
 
+#Modules:
+# Install-Module Microsoft.Graph -Scope AllUsers
+# Install-Module -Name AzureAD
+# Add-WindowsCapability –online –Name “Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0”
+
 Clear-Host
 
 #$boolProefRun              = $false
@@ -218,7 +223,7 @@ try
 catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] 
 { LOG [WARNING] "You're not connected."; Connect-AzureAD}
 
-Connect-MgGraph "device.read.all"
+Connect-MgGraph -scope "device.read.all"
 
 
 
@@ -243,7 +248,7 @@ If ($refresh -eq "y"){
      LOG "[INFO] Found $($AzureADUserARR.COUNT) Users"
      LOG "[INFO] Preparing AzureAD Devices" 
      $devices = Get-MgDevice -All
-     
+     #$devices = $null
 
      LOG "[INFO] Found $($devices.COUNT) Devices"
  }
@@ -328,7 +333,10 @@ $countUsers = $AzureADUserARR.Count
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Vendor10 -Value "DUMMY"
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Model10 -Value "DUMMY"
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name TotalDevices -Value "DUMMY"
+        Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Desktops -Value "DUMMY"
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GroupMemberships -Value "DUMMY"
+
+        
 
         $arrUsers += $UsersArray
 
@@ -369,15 +377,30 @@ ForEach ($AzureADUser in $AzureADUserARR){
 
         LOG "[INFO] groupmemberships"
         
-        ForEach ($AzureADUserGroup in $AzureADUserGroups){
+        forEach ($AzureADUserGroup in $AzureADUserGroups){
+        
+        if ($AzureADUserGroup -like "*SG_GL_Desktop_*"){
+                log "[INFO] Desktop: "
+                LOG "[INFO]  $($AzureADUserGroup.displayname)"
+                
+                $MemberString1 += $($AzureADUserGroup.displayname) 
+                $MemberString1 += "`r`n"
+                }
+         }
 
+         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name Desktops -Value $MemberString1
+        $MemberString1 = $null
+
+        ForEach ($AzureADUserGroup in $AzureADUserGroups){
+            
+            
 
             if ($AzureADUserGroup -like "*AG_*"){
-
+                log "[INFO] Applicatie: "
                 LOG "[INFO]  $($AzureADUserGroup.displayname)"
                 $MemberString += $($AzureADUserGroup.displayname) 
                 $MemberString += "`r`n"
-
+                
                 if ($AzureADUserGroup.displayname -like "AAD_AG_MEET_Nebato_Users")
 
                 {
@@ -402,16 +425,15 @@ ForEach ($AzureADUser in $AzureADUserARR){
 
                         }
                       
-                }
+                }}
 
             }
             
          }    
-        }
-
+       
         Add-Member -InputObject $UsersArray -MemberType NoteProperty -Name GroupMemberships -Value $MemberString
         $MemberString = $null
-
+        
         #LOG "[INFO] $MemberString"
         
         ############ Manager
